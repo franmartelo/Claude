@@ -3,7 +3,10 @@ import sys, os, cv2, numpy as np, time
 sys.path.insert(0, '.')
 from sr import sr2
 
-def terminar(sr, base):
+from terminar2 import terminar as terminar_nuevo
+
+
+def terminar_viejo(sr, base):
     # 80% IA + 20% ampliación clásica: conserva algo de la textura original y evita el look "plástico"
     up = cv2.resize(base, (sr.shape[1], sr.shape[0]), interpolation=cv2.INTER_LANCZOS4)
     out = sr.astype(np.float32) * 0.8 + up.astype(np.float32) * 0.2
@@ -21,14 +24,20 @@ for m in (sys.argv[1:] or ['ypf', 'brahma', 'pepsi']):
         o = f'out/{m}/{f}'
         if os.path.exists(o): continue
         t = time.time()
-        if f in dif:
-            base = cv2.imread(f'corr/{m}/{f[:-4]}.png')
-            sr = sr2(base)
+        # la ampliación cruda se guarda en caché, así retocar la terminación no obliga a rehacerla
+        src = f'corr/{m}/{f[:-4]}.png' if f in dif else f'web/orig/{f}'
+        base = cv2.imread(src)
+        c = f'sr_cache/{m}/{f[:-4]}.png' if f in dif else f'sr_cache/comun/{f[:-4]}.png'
+        if not os.path.exists(c) and f not in dif and os.path.exists(f'sr_out/comun/{f}'):
+            os.makedirs(os.path.dirname(c), exist_ok=True)
+            cv2.imwrite(c, cv2.imread(f'sr_out/comun/{f}'))
+        if os.path.exists(c) and os.path.getmtime(c) >= os.path.getmtime(src):
+            sr = cv2.imread(c)
         else:
-            base = cv2.imread(f'web/orig/{f}')
-            c = f'sr_out/comun/{f}'
-            sr = cv2.imread(c) if os.path.exists(c) else sr2(base)
-        res = terminar(sr, base)
+            sr = sr2(base)
+            os.makedirs(os.path.dirname(c), exist_ok=True)
+            cv2.imwrite(c, sr)
+        res = terminar_nuevo(sr, base, fuerza=0.3 if 'padel' in f else 0.85)  # alambrados: la IA inventa texturas
         os.makedirs(os.path.dirname(o), exist_ok=True)
         cv2.imwrite(o + '.tmp.jpg', res, [cv2.IMWRITE_JPEG_QUALITY, 84, cv2.IMWRITE_JPEG_PROGRESSIVE, 1, cv2.IMWRITE_JPEG_OPTIMIZE, 1])
         os.replace(o + '.tmp.jpg', o)

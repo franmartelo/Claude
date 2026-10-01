@@ -1,5 +1,8 @@
 """Ajustes a mano por foto (coordenadas en píxeles de la foto web original)."""
 AJUSTES = {
+    # restos de la "é" al costado del globo de Pepsi (más chico que el wordmark)
+    'pepsi:act/staff-6.jpg': {'borrar_todo': [[(511, 628), (533, 628), (533, 677), (506, 677), (506, 659), (511, 652)],
+                                              [(496, 626), (516, 626), (516, 658), (496, 658)]]},
     # paleta naranja (no es de Medifé)
     'act/padel-6.jpg': {'excluir': [[(296, 613), (292, 635), (280, 655), (263, 668), (244, 673), (224, 668), (207, 655), (195, 635), (192, 613), (195, 590), (207, 570), (224, 557), (244, 553), (263, 557), (280, 570), (292, 590)]]},
     # brazo al sol del jugador del medio: MediaPipe lo toma como ropa

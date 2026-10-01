@@ -97,7 +97,7 @@ def corregir(O, B, P=None, debug=False):
     zona_prenda = np.zeros((H, W), bool)
     if not P.get('sin_prendas'):
         ht = float(np.median(hO[tela_seg if tela_seg.sum() > 100 else tela]))
-        dh = np.abs(hO - ht)
+        dh = np.minimum(np.abs(hO - ht), 180 - np.abs(hO - ht))  # el tono es circular
         tono = dh <= P.get('tono', 5)
         # ropa (4) y accesorios como gorras (5), con más tolerancia de tono en los accesorios
         prenda = (((cl == 4) & tono) | ((cl == 5) & (dh <= P.get('tono_acc', 8)))) & naranjaO & ~excl
@@ -158,7 +158,8 @@ def corregir(O, B, P=None, debug=False):
     #    si lo tiñó solo a medias (rayado), se deja como en el original.
     e = np.zeros((H, W), np.float32)
     deshacer = np.zeros((H, W), bool)
-    vivo = (sO > P.get('s_objetos', 165)) & naranjaO & ~persona & ~excl & ~(_poly(O.shape, P['zona_rojo']) if P.get('zona_rojo') else False) & (np.abs(hO - ht_g) <= P.get('tono_obj', 8))
+    completar = np.zeros((H, W), bool)
+    vivo = (sO > P.get('s_objetos', 165)) & naranjaO & ~persona & ~excl & ~(_poly(O.shape, P['zona_rojo']) if P.get('zona_rojo') else False) & (np.minimum(np.abs(hO - ht_g), 180 - np.abs(hO - ht_g)) <= P.get('tono_obj', 8))
     vivo = cv2.morphologyEx(vivo.astype(np.uint8), cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)) > 0
     if not P.get('sin_objetos'):
         n, lab, st, _ = cv2.connectedComponentsWithStats(vivo.astype(np.uint8), 8)
@@ -169,14 +170,17 @@ def corregir(O, B, P=None, debug=False):
         comp = (cov >= P.get('cov_completar', 0.08)) & grande_o; comp[0] = False
         medio = np.zeros(n, bool)
         completar = comp[lab]
+        # el objeto entero: cerrar huecos (rayas más oscuras del mismo objeto)
+        k7 = max(int(11 * esc) | 1, 7)
+        completar = (cv2.morphologyEx(completar.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((k7, k7), np.uint8)) > 0) & naranjaO & ~persona
         deshacer = medio[lab]
         if completar.any():
             pos = (completar | (tela & ~persona)).astype(np.float32)
             a = guided(O.astype(np.float32) / 255, pos, max(int(3 * esc), 2), 1e-3)
             a = np.clip((a - 0.2) / 0.6, 0, 1) * (cv2.dilate(completar.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0)
             # solo lo que en la versión de la marca sigue naranja: lo ya cambiado (logos, letras) queda
-            sigueB = cv2.dilate((((hB <= 25) | (hB >= 175)) & (sB > 60) & (np.abs(hB - hO) <= 4)).astype(np.uint8), np.ones((3, 3), np.uint8)) > 0
-            e = a * np.clip((sO.astype(np.float32) - 120) / 30, 0, 1) * ~logo_g * sigueB
+            sigueB = cv2.dilate((((hB <= 25) | (hB >= 175)) & (sB > 60) & (np.minimum(np.abs(hB - hO), 180 - np.abs(hB - hO)) <= 4)).astype(np.uint8), np.ones((3, 3), np.uint8)) > 0
+            e = a * np.clip((sO.astype(np.float32) - 90) / 30, 0, 1) * ~logo_g
 
     m = cv2.GaussianBlur(np.maximum(w, e), (0, 0), 0.6)
     out = aplicar(O)
@@ -194,6 +198,16 @@ def corregir(O, B, P=None, debug=False):
     malp = tela & (persona | (_poly(O.shape, P['zona_rojo']) if P.get('zona_rojo') else False)) & ((hO <= P.get('rojo_hmax', ht_g - P.get('rojo_dh', 7))) | (hO > 168)) & (sO > 80) & (m < 0.1) & bool(P.get('restaurar_rojo'))
     malp = cv2.GaussianBlur(cv2.dilate(malp.astype(np.uint8), np.ones((3, 3), np.uint8)).astype(np.float32), (0, 0), 0.7)[..., None]
     R = R * (1 - malp) + O * malp
+    # objetos de otro tono (fajas rojas de la red, etc.): no eran de Medifé; si la versión
+    # de la marca los rayó a medias, vuelven a su color original
+    if not P.get('sin_cintas'):
+        rojo = naranjaO & (sO > 120) & ~persona & ((hO <= ht_g - P.get('rojo_obj_dh', 4)) | (hO >= 170))
+        rojo = cv2.morphologyEx(rojo.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+        n_r, lab_r, st_r, _ = cv2.connectedComponentsWithStats(rojo, 8)
+        cov_r = np.bincount(lab_r[(dif > 30)], minlength=n_r) / np.maximum(st_r[:, 4], 1)
+        sel = (cov_r > 0.05) & (cov_r < P.get('cov_rojo', 0.95)) & (st_r[:, 4] >= 80 * esc * esc); sel[0] = False
+        comp_d = cv2.dilate(completar.astype(np.uint8), np.ones((15, 15), np.uint8)) > 0
+        deshacer = deshacer | (sel[lab_r] & (m < 0.1) & ~comp_d)
     if deshacer.any():
         d = cv2.dilate(deshacer.astype(np.uint8), np.ones((5, 5), np.uint8)) > 0
         d &= (dif > 8) & ~persona
