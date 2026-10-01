@@ -58,6 +58,13 @@ def retoques(O, R, P):
     if P.get('restaurar'):
         z = cv2.GaussianBlur(_poly(R.shape, P['restaurar']).astype(np.float32), (0, 0), 1.5)[..., None]
         R = (R * (1 - z) + O * z).astype(np.uint8)
+    # letras rojas sueltas (pantallas LED): solo los píxeles rojos, rellenados con lo de alrededor
+    for p in P.get('borrar_rojo', []):
+        z = _poly(R.shape, [p])
+        hsv = cv2.cvtColor(R, cv2.COLOR_BGR2HSV)
+        rojo = z & ((hsv[..., 0] <= 12) | (hsv[..., 0] >= 165)) & (hsv[..., 1] > 90)
+        mask = cv2.dilate(rojo.astype(np.uint8) * 255, np.ones((3, 3), np.uint8), iterations=1)
+        R = cv2.inpaint(R, mask, 3, cv2.INPAINT_TELEA)
     tareas = [(p, False) for p in P.get('borrar', [])] + [(p, True) for p in P.get('borrar_todo', [])]
     for p, todo in tareas:
         z = _poly(R.shape, [p])

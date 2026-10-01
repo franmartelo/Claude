@@ -100,7 +100,11 @@ def corregir(O, B, P=None, debug=False):
         dh = np.minimum(np.abs(hO - ht), 180 - np.abs(hO - ht))  # el tono es circular
         tono = dh <= P.get('tono', 5)
         # ropa (4) y accesorios como gorras (5), con más tolerancia de tono en los accesorios
-        prenda = (((cl == 4) & tono) | ((cl == 5) & (dh <= P.get('tono_acc', 8)))) & naranjaO & ~excl
+        # accesorios (gorras): solo pegado a lo que ya estaba teñido, así no se tiñen los reflejos
+        # naranjas de los anteojos espejados ni otras cosas sueltas
+        ra = max(int(P.get('radio_acc', 6) * esc), 3)
+        cerca_t = cv2.dilate(tela.astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * ra + 1, 2 * ra + 1))) > 0
+        prenda = (((cl == 4) & tono) | ((cl == 5) & (dh <= P.get('tono_acc', 8)) & cerca_t)) & naranjaO & ~excl
         prenda = cv2.morphologyEx(prenda.astype(np.uint8), cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)) > 0
         # ropa y accesorios por separado: una paleta naranja pegada a una pechera no es pechera
         sal = np.zeros((H, W), bool)
@@ -167,8 +171,10 @@ def corregir(O, B, P=None, debug=False):
         grande_o = st[:, 4] >= P.get('area_objeto', 60) * esc * esc
         # todo objeto que la versión de la marca empezó a teñir se completa (deshacer
         # podría devolverle a Medifé una prenda o una bandera)
-        comp = (cov >= P.get('cov_completar', 0.08)) & grande_o; comp[0] = False
-        medio = np.zeros(n, bool)
+        # mayormente teñido: se completa. Apenas tocado: fue un error de la versión anterior
+        # (madera, paletas, sombrillas) y vuelve al original
+        comp = (cov >= P.get('cov_completar', 0.4)) & grande_o; comp[0] = False
+        medio = (cov > 0.02) & (cov < P.get('cov_completar', 0.4)) & grande_o; medio[0] = False
         completar = comp[lab]
         # el objeto entero: cerrar huecos (rayas más oscuras del mismo objeto)
         k7 = max(int(11 * esc) | 1, 7)
@@ -180,7 +186,11 @@ def corregir(O, B, P=None, debug=False):
             a = np.clip((a - 0.2) / 0.6, 0, 1) * (cv2.dilate(completar.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0)
             # solo lo que en la versión de la marca sigue naranja: lo ya cambiado (logos, letras) queda
             sigueB = cv2.dilate((((hB <= 25) | (hB >= 175)) & (sB > 60) & (np.minimum(np.abs(hB - hO), 180 - np.abs(hB - hO)) <= 4)).astype(np.uint8), np.ones((3, 3), np.uint8)) > 0
-            e = a * np.clip((sO.astype(np.float32) - 90) / 30, 0, 1) * ~logo_g
+            # solo donde la versión de la marca dejó naranja/rojo: lo que ya pintó (logos, rellenos
+            # que taparon el texto viejo) se respeta, así no reaparece el "Medifé" fantasma
+            sigue_l = ((hB <= 25) | (hB >= 165)) & (sB > 40)
+            sigue_l = cv2.dilate(sigue_l.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0
+            e = a * np.clip((sO.astype(np.float32) - 90) / 30, 0, 1) * ~logo_g * sigue_l
 
     m = cv2.GaussianBlur(np.maximum(w, e), (0, 0), 0.6)
     out = aplicar(O)

@@ -4,6 +4,17 @@ sys.path.insert(0, '.')
 from sr import sr2
 
 from terminar2 import terminar as terminar_nuevo
+from restos import clases
+
+
+def caras_originales(res, O):
+    cl = clases(O)
+    cara = np.isin(cl, [1, 3]).astype(np.uint8)  # pelo y piel de la cara
+    cara = cv2.dilate(cara, np.ones((3, 3), np.uint8))
+    m = cv2.resize(cara.astype(np.float32), (res.shape[1], res.shape[0]), interpolation=cv2.INTER_LINEAR)
+    m = np.clip(cv2.GaussianBlur(m, (0, 0), 1.5) * 1.3, 0, 1)[..., None]
+    up = cv2.resize(O, (res.shape[1], res.shape[0]), interpolation=cv2.INTER_LANCZOS4).astype(np.float32)
+    return np.clip(res * (1 - m) + up * m, 0, 255).astype(np.uint8)
 
 
 def terminar_viejo(sr, base):
@@ -38,6 +49,8 @@ for m in (sys.argv[1:] or ['ypf', 'brahma', 'pepsi']):
             os.makedirs(os.path.dirname(c), exist_ok=True)
             cv2.imwrite(c, sr)
         res = terminar_nuevo(sr, base, fuerza=0.3 if 'padel' in f else 0.85)  # alambrados: la IA inventa texturas
+        # caras: la foto original tal cual, solo ampliada (sin IA, sin grano, sin cambio de marca)
+        res = caras_originales(res, cv2.imread(f'web/orig/{f}'))
         os.makedirs(os.path.dirname(o), exist_ok=True)
         cv2.imwrite(o + '.tmp.jpg', res, [cv2.IMWRITE_JPEG_QUALITY, 84, cv2.IMWRITE_JPEG_PROGRESSIVE, 1, cv2.IMWRITE_JPEG_OPTIMIZE, 1])
         os.replace(o + '.tmp.jpg', o)
