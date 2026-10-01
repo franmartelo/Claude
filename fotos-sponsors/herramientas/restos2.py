@@ -79,6 +79,8 @@ def corregir(O, B, P=None, debug=False):
     ht_g = float(np.median(hO[tela_seg if tela_seg.sum() > 100 else tela]))
     persona = np.isin(cl, [1, 2, 3, 4])
     excl = _poly(O.shape, P['excluir']) if P.get('excluir') else np.zeros((H, W), bool)
+    if P.get('excluir_smax'):
+        excl &= sO < P['excluir_smax']  # dentro del polígono, solo lo poco saturado (piel), no la tela
 
     # logos que puso la versión de la marca: B no es mezcla entre O y el color esperado
     E0 = aplicar(O); Of0 = O.astype(np.float32); Bf0 = B.astype(np.float32)
@@ -116,7 +118,8 @@ def corregir(O, B, P=None, debug=False):
             sal |= ok[lab]
         prenda = sal
         if P.get('forzar'):
-            prenda |= _poly(O.shape, P['forzar']) & naranjaO
+            piel_f = cv2.dilate(np.isin(cl, [2, 3]).astype(np.uint8), np.ones((3, 3), np.uint8)) > 0
+            prenda |= _poly(O.shape, P['forzar']) & naranjaO & ~piel_f
         if prenda.any():
             k = max(int(21 * esc) | 1, 7)
             zona_prenda = cv2.dilate(cv2.morphologyEx(prenda.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((k, k), np.uint8)),
@@ -192,6 +195,10 @@ def corregir(O, B, P=None, debug=False):
             sigue_l = cv2.dilate(sigue_l.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0
             e = a * np.clip((sO.astype(np.float32) - 90) / 30, 0, 1) * ~logo_g * sigue_l
 
+    # lo excluido a mano (manos, anteojos, paletas) nunca se tiñe, ni por el filtro de bordes
+    if excl.any():
+        ex = cv2.GaussianBlur(excl.astype(np.float32), (0, 0), 0.8)
+        w = w * (1 - ex); e = e * (1 - ex)
     m = cv2.GaussianBlur(np.maximum(w, e), (0, 0), 0.6)
     out = aplicar(O)
     mm = m[..., None]
@@ -230,6 +237,30 @@ def corregir(O, B, P=None, debug=False):
         mal = tela & ~persona & ~tela_g & (sO < P.get('s_min_tela', 95)) & (m < 0.1)
         mal = cv2.GaussianBlur(cv2.dilate(mal.astype(np.uint8), np.ones((3, 3), np.uint8)).astype(np.float32), (0, 0), 0.7)[..., None]
         R = R * (1 - mal) + O * mal
+    # redes y cintas finas (red de vóley): siempre con su color original
+    if P.get('red_original'):
+        viva = (((hO <= 25) | (hO >= 170)) & (sO > 110) & (vO > 50) & ~persona).astype(np.uint8)
+        kk = max(int(P.get('grosor_red', 23) * esc) | 1, 9)
+        grueso = cv2.morphologyEx(viva, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kk, kk)))
+        grueso = cv2.dilate(grueso, np.ones((5, 5), np.uint8))
+        cerca_g = cv2.dilate(grueso, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (max(int(15 * esc), 7),) * 2))
+        fino = (viva > 0) & (cerca_g == 0)
+        # solo lo largo y finito (cintas que cruzan la foto), no pecheras ni bordes de banderas
+        n_f, lab_f, st_f, _ = cv2.connectedComponentsWithStats(fino.astype(np.uint8), 8)
+        largo = st_f[:, 2] >= P.get('largo_red', 0.12) * W  # a lo ancho: las cintas cruzan la foto, las banderas son verticales
+        largo[0] = False
+        fino = largo[lab_f]
+        if P.get('mantener'):
+            fino &= ~_poly(O.shape, P['mantener'])
+        # incluir el borde teñido alrededor de la cinta
+        fino = cv2.dilate(fino.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0
+        fino &= (dif > 8) & ~persona
+        mr = cv2.GaussianBlur(fino.astype(np.float32), (0, 0), 0.7)[..., None]
+        R = R * (1 - mr) + O * mr
+    # zonas donde la versión anterior ya había quedado bien (manos, por ejemplo)
+    if P.get('usar_marca'):
+        zb = cv2.GaussianBlur(_poly(O.shape, P['usar_marca']).astype(np.float32), (0, 0), 1.0)[..., None]
+        R = R * (1 - zb) + B * zb
     R = retoques(O, R.astype(np.uint8), P)
     if debug:
         dd = (B * (1 - mm) + np.array([255, 0, 255]) * mm).astype(np.uint8)

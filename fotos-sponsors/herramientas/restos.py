@@ -62,9 +62,17 @@ def retoques(O, R, P):
     for p in P.get('borrar_rojo', []):
         z = _poly(R.shape, [p])
         hsv = cv2.cvtColor(R, cv2.COLOR_BGR2HSV)
-        rojo = z & ((hsv[..., 0] <= 12) | (hsv[..., 0] >= 165)) & (hsv[..., 1] > 90)
+        rojo = z & ((hsv[..., 0] <= P.get('borrar_rojo_hmax', 12)) | (hsv[..., 0] >= 165)) & (hsv[..., 1] > P.get('borrar_rojo_smin', 90))
         mask = cv2.dilate(rojo.astype(np.uint8) * 255, np.ones((3, 3), np.uint8), iterations=1)
         R = cv2.inpaint(R, mask, 3, cv2.INPAINT_TELEA)
+    # letras un poco más claras que la tela (restos tenues): se detectan contra la mediana local
+    for p in P.get('borrar_tenue', []):
+        z = _poly(R.shape, [p])
+        L = cv2.cvtColor(R, cv2.COLOR_BGR2Lab)[..., 0].astype(np.float32)
+        med = cv2.medianBlur(L.astype(np.uint8), 15).astype(np.float32)
+        letra = z & ((L - med) > P.get('tenue_dl', 6))
+        mask = cv2.dilate(letra.astype(np.uint8) * 255, np.ones((3, 3), np.uint8), iterations=1)
+        R = cv2.inpaint(R, mask, 4, cv2.INPAINT_TELEA)
     tareas = [(p, False) for p in P.get('borrar', [])] + [(p, True) for p in P.get('borrar_todo', [])]
     for p, todo in tareas:
         z = _poly(R.shape, [p])
