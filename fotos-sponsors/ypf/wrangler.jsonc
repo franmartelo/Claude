@@ -1,0 +1,20 @@
+/**
+ * COPIA PARA YPF del sitio de sponsors: mismas páginas, fotos con la marca YPF.
+ * El nombre del Worker es la marca ("ypf"): no pisa el sitio de Medifé.
+ *
+ * Publicar:  npx.cmd wrangler deploy      (desde esta carpeta)
+ * Queda en:  https://ypf.balnearioguillermo.workers.dev
+ *            (con el subdominio de la cuenta cambiado a "balnearioguillermo")
+ */
+{
+  "name": "ypf",
+  "compatibility_date": "2026-09-01",
+  // La URL .workers.dev es la que ven las marcas: que un deploy no la apague.
+  "workers_dev": true,
+  "assets": {
+    // La carpeta entera es el sitio. Lo que no debe subirse está en .assetsignore.
+    "directory": "./",
+    // Cualquier URL que no exista devuelve 404.html con estado 404.
+    "not_found_handling": "404-page"
+  }
+}

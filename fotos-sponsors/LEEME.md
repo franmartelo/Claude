@@ -10,7 +10,21 @@ nombres de archivo, así que alcanza con copiar y pisar.
 2. Copiá `fotos-sponsors/ypf/assets/img/` encima de
    `D:\prueba\guillermo-sponsors-marcas\ypf\assets\img\` (aceptá reemplazar).
    Lo mismo con `brahma/` y `pepsi/`.
-3. Publicá cada sitio como siempre (`npx wrangler deploy` dentro de cada carpeta).
+3. Copiá también `fotos-sponsors/<marca>/wrangler.jsonc` encima del de cada carpeta
+   (el Worker ahora se llama como la marca: `ypf`, `brahma`, `pepsi`).
+4. En dash.cloudflare.com → **Workers & Pages** → *Subdomain* → **Change** → `balnearioguillermo`.
+5. Publicá cada sitio desde su carpeta, en PowerShell:
+
+       cd D:\prueba\guillermo-sponsors-marcas\ypf
+       npx.cmd wrangler deploy
+
+   Queda en `https://ypf.balnearioguillermo.workers.dev` (lo mismo con `brahma` y `pepsi`).
+6. Probá las tres direcciones nuevas y después borrá los Workers viejos
+   (`balnearioguillermo-ypf`, `-brahma`, `-pepsi`) desde Workers & Pages → Settings → Delete.
+
+Ojo: al cambiar el subdominio, el sitio de Medifé pasa a
+`https://balnearioguillermo.balnearioguillermo.workers.dev` y los links con
+`martelo-francisco8` dejan de andar.
 
 No hay que tocar el HTML: las fotos nuevas tienen el doble de resolución pero la
 misma proporción, y la página las sigue mostrando del mismo tamaño (se ven más
