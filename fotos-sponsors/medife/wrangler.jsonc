@@ -1,0 +1,25 @@
+/**
+ * SITIO DE SPONSORS — versión MEDIFÉ (carpeta guillermo-sponsors).
+ * El Worker ahora se llama "medife". Al publicar con este nombre Cloudflare crea un
+ * Worker NUEVO; el viejo ("balnearioguillermo") se borra a mano cuando el nuevo ande.
+ * OJO: el sitio público del balneario es OTRO Worker,
+ * "lively-cell-1130", en ../guillermo-web/wrangler.jsonc.
+ *
+ * Publicar:  npx.cmd wrangler deploy      (desde esta carpeta)
+ * Queda en:  https://medife.balnearioguillermo.workers.dev
+ *            (con el subdominio de la cuenta cambiado a "balnearioguillermo")
+ *
+ * No hay nada que compilar: Cloudflare sirve estos archivos tal cual.
+ */
+{
+  "name": "medife",
+  "compatibility_date": "2026-09-01",
+  // La URL .workers.dev es la que ven las marcas: que un deploy no la apague.
+  "workers_dev": true,
+  "assets": {
+    // La carpeta entera es el sitio. Lo que no debe subirse está en .assetsignore.
+    "directory": "./",
+    // Cualquier URL que no exista devuelve 404.html con estado 404.
+    "not_found_handling": "404-page"
+  }
+}

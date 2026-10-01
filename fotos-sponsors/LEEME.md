@@ -22,9 +22,17 @@ nombres de archivo, así que alcanza con copiar y pisar.
 6. Probá las tres direcciones nuevas y después borrá los Workers viejos
    (`balnearioguillermo-ypf`, `-brahma`, `-pepsi`) desde Workers & Pages → Settings → Delete.
 
-Ojo: al cambiar el subdominio, el sitio de Medifé pasa a
-`https://balnearioguillermo.balnearioguillermo.workers.dev` y los links con
-`martelo-francisco8` dejan de andar.
+### Sitio de Medifé
+
+`medife/wrangler.jsonc` va en `D:\prueba\guillermo-sponsors\` (la carpeta original).
+Se publica igual (`npx.cmd wrangler deploy` desde esa carpeta) y queda en
+`https://medife.balnearioguillermo.workers.dev`. Después se borra el Worker viejo
+`balnearioguillermo`.
+
+**Ojo:** el subdominio es de toda la cuenta. Al cambiarlo, también cambia la dirección
+de la web pública del balneario (Worker `lively-cell-1130`): pasa a
+`https://lively-cell-1130.balnearioguillermo.workers.dev`. Todos los links con
+`martelo-francisco8` (Instagram, QR, mensajes ya mandados) dejan de andar.
 
 No hay que tocar el HTML: las fotos nuevas tienen el doble de resolución pero la
 misma proporción, y la página las sigue mostrando del mismo tamaño (se ven más
