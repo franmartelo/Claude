@@ -40,26 +40,17 @@ nítidas en celulares y pantallas retina).
 
 ## Qué se hizo
 
-**1. Se terminó el cambio de marca** (en las ~50 fotos que tenían branding de Medifé):
-- Las prendas (pecheras, musculosas, camperas, gorras) quedaron teñidas a medias
-  en la versión anterior: costados naranjas, rayas, parches. Ahora cada prenda se
-  re-tiñe entera desde la foto original, con un color parejo que respeta sombras,
-  pliegues y brillos.
-- Se borraron los restos de "Medifé" que quedaban pegados al logo nuevo
-  (por ejemplo la "é" de "YPFé") y las letras viejas sueltas sobre la tela.
-- Bordes y halos naranjas alrededor de colchonetas, banderas y bolsas: completados.
-- Se deshicieron errores de la versión anterior: piel teñida de azul, shorts rojos
-  rayados de azul, vetas azules en el deck de madera, halos azules en la arena.
-- Nunca se toca piel ni pelo (segmentación con MediaPipe) y se respetan los logos
-  nuevos de cada marca.
+Criterio: se tiñe solo lo que el balneario podría producir con la marca; lo que la gente
+tiene puesto queda con su color original.
 
-**2. Calidad** (todas las fotos):
-- Ampliación x2 con IA (Real-ESRGAN): saca los cuadraditos de compresión JPEG y
-  recupera nitidez en caras, texto y texturas.
-- Para que no se note la edición, se mezcla con un 20 % de la textura original y se
-  agrega un grano fino de foto (evita el look "plástico" típico de la IA).
-
-Se revisaron una por una, a tamaño real, antes de subirlas.
+- **Ropa (pecheras, camperas, musculosas, remeras, gorras):** naranja original, con el logo
+  de la marca donde estaba "Medifé" (mismas posiciones de `fotos.py`, logos en vector).
+- **Flybanners:** color sólido de la marca de borde a borde, con los pliegues de la tela.
+- **Objetos (colchonetas de yoga, manta, bolsa, cajas, carteles):** teñidos con el color de
+  la marca. Azul Pepsi corregido (menos violáceo).
+- **Restos de Medifé** en cintas, remeras y pecheras: borrados.
+- **Caras:** siempre las originales, sin IA ni retoque.
+- **Calidad:** ampliación x2 con IA solo en zonas enfocadas, con grano fino de foto.
 
 ## Lo que no cambió
 

@@ -36,7 +36,7 @@ for m in (sys.argv[1:] or ['ypf', 'brahma', 'pepsi']):
         if os.path.exists(o): continue
         t = time.time()
         # la ampliación cruda se guarda en caché, así retocar la terminación no obliga a rehacerla
-        src = f'corr/{m}/{f[:-4]}.png' if f in dif else f'web/orig/{f}'
+        src = f'elegida/{m}/{f[:-4]}.png' if f in dif else f'web/orig/{f}'
         base = cv2.imread(src)
         c = f'sr_cache/{m}/{f[:-4]}.png' if f in dif else f'sr_cache/comun/{f[:-4]}.png'
         if not os.path.exists(c) and f not in dif and os.path.exists(f'sr_out/comun/{f}'):
