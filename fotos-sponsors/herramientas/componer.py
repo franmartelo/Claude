@@ -14,11 +14,19 @@ import banderas
 ELECCION = {
     'act/eventos-3.jpg': 'T',  # la bolsa: entera del color de la marca
     'act/staff-5.jpg': 'L',    # remera naranja; la mezcla dejaba parches
+    'yoga.jpg': 'T',           # todas las colchonetas del color de la marca (la gente no tiene naranja)
     'act/eventos-4.jpg': 'T',  # la manta del público: entera del color de la marca
     # vóley: gente chica y lejos (MediaPipe no siempre la detecta); las banderas ya son sólidas en L
     'voley.jpg': 'L', 'voley2.jpg': 'L', 'act/voley-1.jpg': 'L', 'act/voley-2.jpg': 'L',
     'act/voley-3.jpg': 'L', 'act/voley-4.jpg': 'L', 'act/tenis-5.jpg': 'L', 'act/tenis-3.jpg': 'L',
     'act/padel-6.jpg': 'L',   # las bolsas las tienen en la mano: quedan naranjas con el logo, como las pecheras
+}
+
+
+ZONA_L = {
+    'act/yoga-4.jpg': [(230, 330, 325, 560)],   # la instructora (remera naranja del staff)
+    'act/yoga-5.jpg': [(240, 445, 305, 565)],
+    'act/yoga-6.jpg': [(310, 425, 380, 560), (530, 785, 712, 878)],   # y la remera del que está acostado
 }
 
 
@@ -39,13 +47,25 @@ def textos_viejos(R, O, cl, P):
     pegado = cv2.morphologyEx(pegado.astype(np.uint8), cv2.MORPH_OPEN, np.ones((2, 2), np.uint8))
     igual &= cv2.dilate(pegado, np.ones((max(int(31 * esc) | 1, 15),) * 2, np.uint8)) == 0
     rodeado = cv2.blur(nar, (9, 9)) > 0.4
-    ropa = cv2.dilate(np.isin(cl, [4, 5]).astype(np.uint8), np.ones((7, 7), np.uint8)) > 0
+    ropa = cv2.erode((cl == 4).astype(np.uint8), np.ones((3, 3), np.uint8)) > 0   # solo ropa, nunca redes ni fondo
     cand = claro & igual & rodeado & ropa
     if P.get('sin_textos'):
         cand[:] = False
-    n, lab, st, _ = cv2.connectedComponentsWithStats(cand.astype(np.uint8), 8)
-    ok = (st[:, 4] >= 3) & (st[:, 4] <= 400 * esc * esc); ok[0] = False
-    cand = ok[lab]
+    # agrupar letras de una misma palabra y exigir que la palabra esté encerrada por tela
+    # naranja (no el borde de la prenda contra la arena o la piel)
+    grupos = cv2.dilate(cand.astype(np.uint8), np.ones((5, 5), np.uint8))
+    n, lab, st, _ = cv2.connectedComponentsWithStats(grupos, 8)
+    ok = np.zeros(n, bool)
+    narb = nar > 0
+    for i in range(1, n):
+        if st[i, 4] > 1500 * esc * esc: continue
+        x, y, w, hh = st[i, :4]
+        sub = (lab[max(y - 4, 0):y + hh + 4, max(x - 4, 0):x + w + 4] == i).astype(np.uint8)
+        anillo = (cv2.dilate(sub, np.ones((7, 7), np.uint8)) > 0) & (sub == 0)
+        nsub = narb[max(y - 4, 0):y + hh + 4, max(x - 4, 0):x + w + 4]
+        if anillo.any() and nsub[anillo].mean() >= 0.85:
+            ok[i] = True
+    cand = cand & ok[lab]
     if not cand.any(): return R
     le = cv2.dilate(cand.astype(np.uint8), np.ones((3, 3), np.uint8), iterations=2) > 0
     valid = ((nar > 0) & ~le).astype(np.float32)
@@ -88,8 +108,14 @@ def _componer(m, k, O, cl=None):
     # bordes del objeto (colchonetas): todo lo naranja pegado al objeto también va
     hO = cv2.cvtColor(O, cv2.COLOR_BGR2HSV).astype(np.int16)
     naranja = ((hO[..., 0] <= 25) | (hO[..., 0] >= 170)) & (hO[..., 1] > 70)
-    borde = (cv2.dilate(obj.astype(np.uint8), np.ones((7, 7), np.uint8)) > 0) & naranja & ~persona & (dif > 8)
+    # en el borde se mira la persona sin margen: la colchoneta llega hasta la piel
+    persona0 = np.isin(cl, [1, 2, 3, 4, 5])
+    borde = (cv2.dilate(obj.astype(np.uint8), np.ones((9, 9), np.uint8)) > 0) & naranja & ~persona0 & ~flags & (dif > 8)
     a = np.maximum(a, cv2.GaussianBlur(borde.astype(np.float32), (0, 0), 0.7))
+    for p in ZONA_L.get(k, []):   # gente que MediaPipe no detectó (lejos): queda como en L
+        x0, y0, x1, y1 = p
+        z = np.zeros(O.shape[:2], np.float32); z[y0:y1, x0:x1] = 1
+        a = a * (1 - cv2.GaussianBlur(z, (0, 0), 1.5))
     a = a[..., None]
     return np.clip(L * (1 - a) + T * a, 0, 255).astype(np.uint8)
 

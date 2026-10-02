@@ -1,5 +1,9 @@
 """Ajustes a mano por foto (coordenadas en píxeles de la foto web original)."""
 AJUSTES = {
+    # "Medifé" en la remera naranja del que está acostado
+    'act/yoga-6.jpg': {'borrar': [[(592, 786), (660, 786), (660, 835), (592, 835)]], 'borrar_s': 120, 'borrar_v': 185, 'borrar_dilatar': 1, 'borrar_sigma': 4, 'grano': 3.0},
+    # "Medifé" naranja en la remera blanca de la chica acostada
+    'act/yoga-4.jpg': {'borrar_rojo': [[(225, 745), (310, 745), (310, 800), (225, 800)]], 'borrar_rojo_hmax': 25, 'borrar_rojo_smin': 60},
     # "Medifé" que quedó en la espalda de la pechera
     'act/voley-4.jpg': {'borrar_tenue': [[(176, 530), (264, 530), (264, 578), (176, 578)]], 'restaurar_rojo': True,
                         'restaurar': [[(95, 652), (172, 652), (172, 722), (95, 722)]]},  # base de madera del poste
